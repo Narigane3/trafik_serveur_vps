@@ -1,0 +1,18 @@
+services:
+  trafik:
+    image: ${TRAFIK_VERSION}
+    container_name: trafik_service
+    command:
+      - "--api.insecure=true"
+      - "--providers.docker"
+      - "--entrypoints.web.address=:${HTTP_PORT}"
+    ports:
+      - "${HTTP_PORT}:80"  # Port HTTP
+      - "${TRAEFIK_API_PORT}:${TRAEFIK_API_PORT}"  # Dashboard Traefik
+    volumes:
+      - "${DOCKER_SOCK}:${DOCKER_SOCK}"  # Pour accéder à l'API Docker
+    networks:
+      - traefik_network
+networks:
+  traefik_network:
+    external: true

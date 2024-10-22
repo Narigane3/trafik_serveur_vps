@@ -1,0 +1,5 @@
+.env
+# Macos
+.DS_Store
+# IDE
+.idea
