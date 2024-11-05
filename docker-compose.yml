@@ -1,18 +1,40 @@
 services:
-  trafik:
-    image: ${TRAFIK_VERSION}
+  traefik:
+    image: ${TRAEFIK_VERSION}
     container_name: trafik_service
+    labels:
+      - "traefik.enable=true" # Activation de Traefik
+      - "traefik.http.routers.api.rule=Host(`${TRAEFIK_DOMAIN}`)" # Domaine pour accéder à l'interface de Traefik
+      - "traefik.http.routers.api.entrypoints=websecure" # Entrée sécurisée
+      - "traefik.http.routers.api.service=api@internal" # Service interne
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https" # Redirection vers HTTPS
+      - "traefik.http.routers.api.tls.certresolver=le"  # Résolveur de certificat pour le dashboard
+      # Middleware pour la redirection de HTTP vers HTTPS
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)" # Tous les domaines
+      - "traefik.http.routers.http-catchall.entrypoints=web" # Entrée HTTP
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https" # Middleware de redirection
+      # Middleware pour l'authentification
+      - "traefik.http.routers.api.middlewares=auth" # Middleware pour l'authentification
+      - "traefik.http.middlewares.auth.basicauth.users=${BASIC_AUTH}" # Authentification basique
     command:
-      - "--api.insecure=true"
-      - "--providers.docker"
-      - "--entrypoints.web.address=:${HTTP_PORT}"
+      - "--log.level=info" # Niveau de log
+      - "--api.insecure=false" # Désactive le mode insecure
+      - "--api.dashboard=true" # Active le dashboard
+      - "--providers.docker" # Utilisation du provider Docker
+      - "--entrypoints.web.address=:${HTTP_PORT}" # Port HTTP
+      - "--entrypoints.websecure.address=:${HTTPS_PORT}" # Port HTTPS
+      - "--certificatesresolvers.le.acme.email=${EMAIL}" # Email pour les certificats
+      - "--certificatesresolvers.le.acme.storage=/acme.json" # Stockage des certificats
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web" # Challenge HTTP
     ports:
-      - "${HTTP_PORT}:80"  # Port HTTP
-      - "${TRAEFIK_API_PORT}:${TRAEFIK_API_PORT}"  # Dashboard Traefik
+      - "${HTTP_PORT}:80"
+      - "${HTTPS_PORT}:443"  # Port HTTPS personnalisé
     volumes:
-      - "${DOCKER_SOCK}:${DOCKER_SOCK}"  # Pour accéder à l'API Docker
+      - "${DOCKER_SOCK}:${DOCKER_SOCK}"
+      - ./acme.json:/acme.json # Stockage des certificats
     networks:
       - traefik_network
+
 networks:
   traefik_network:
     external: true
