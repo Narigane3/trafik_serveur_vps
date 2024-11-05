@@ -5,8 +5,10 @@
 - [Information](#information)
 - [Requis](#requis)
 - [Installation](#installation)
+- [Configuration des services](#configuration-des-services)
 - [Configuration MDP pour le dashboard de Traefik](#configuration-mdp-pour-le-dashboard-de-traefik)
 - [Accès à l'interface Dashboard de Traefik](#accès-à-linterface-dashboard-de-traefik)
+- [Accès au logs de Traefik](#accès-au-logs-de-traefik)
 
 ## Description
 Ce projet permet de configurer un serveur VPS en tant que routeur pour rediriger les requêtes entrantes vers les différents services docker. Il utilise Traefik comme reverse proxy et permet de gérer les différents services via une interface web. 
@@ -33,6 +35,28 @@ Le dashboard de Traefik est accessible via le domain `${TRAEFIK_DOMAIN}` et le p
 4. Créer le fichier `.env` via la commande `cp .env.example .env` et le remplir avec les informations nécessaires (`DOMAIN`, `TRAEFIK_DOMAIN`,  `BASIC_AUTH`, `EMAIL`)
 5. Lancer le serveur Traefik via la commande `docker-compose up -d`
 
+## Configuration des services
+Pour ajouter un service à Traefik, il suffit de rajouter les labels suivants dans le fichier `docker-compose.yml` du service:
+```yml
+labels:
+  - "traefik.enable=true"
+  - "traefik.http.routers.{NOM_DU_SERVICE}.rule=Host(`{NOM_DU_SERVICE}.${DOMAIN}`)"
+  - "traefik.http.routers.{NOM_DU_SERVICE}.entrypoints=websecure"
+  - "traefik.http.routers.{NOM_DU_SERVICE}.tls=true"
+  - "traefik.http.routers.{NOM_DU_SERVICE}.tls.certresolver=letsencrypt"
+  - "traefik.http.services.{NOM_DU_SERVICE}.loadbalancer.server.port={PORT_DU_SERVICE}"
+  # Redirect to https
+  - "traefik.http.middlewares.myapp-https-redirect.redirectscheme.scheme=https"
+```
+sans oublier d'inclure le service dans le réseau `traefik_network`:
+```yml
+   networks:
+      - traefik_network
+networks:
+  traefik_network:
+    external: true
+```
+
 ## Configuration MDP pour le dashboard de Traefik
 Le mot de passe pour l'interface de Traefik est généré via la commande `htpasswd -nb admin password` et doit être ajouté dans le fichier `.env` sous la forme `BASIC_AUTH='admin:password'`
 
@@ -41,3 +65,6 @@ Le mot de passe pour l'interface de Traefik est généré via la commande `htpas
 
 ## Accès à l'interface Dashboard de Traefik
 L'interface de Traefik est accessible via le domain `${TRAEFIK_DOMAIN}` en HTTPS (ex: `traefik.domaine.com/dashboard/#/`)
+
+## Accès au logs de Traefik
+Les access logs de Traefik sont activer et sont accessibles dans le logs rep `./logs/access.log`
