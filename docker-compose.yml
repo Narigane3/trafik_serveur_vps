@@ -2,6 +2,7 @@ services:
   traefik:
     image: ${TRAEFIK_VERSION}
     container_name: trafik_service
+    restart: always
     labels:
       - "traefik.enable=true" # Activation de Traefik
       - "traefik.http.routers.api.rule=Host(`${TRAEFIK_DOMAIN}`)" # Domaine pour accéder à l'interface de Traefik
