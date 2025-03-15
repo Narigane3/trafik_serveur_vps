@@ -1,49 +1,80 @@
 services:
   traefik:
     image: ${TRAEFIK_VERSION}
-    container_name: trafik_service
+    container_name: traefik_service
     restart: always
     labels:
       - "traefik.enable=true" # Activation de Traefik
-      - "traefik.http.routers.api.rule=Host(`${TRAEFIK_DOMAIN}`)" # Domaine pour accéder à l'interface de Traefik
-      - "traefik.http.routers.api.entrypoints=websecure" # Entrée sécurisée
-      - "traefik.http.routers.api.service=api@internal" # Service interne
-      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https" # Redirection vers HTTPS
-      - "traefik.http.routers.api.tls.certresolver=le"  # Résolveur de certificat pour le dashboard
+      - "traefik.http.routers.api.rule=Host(`${TRAEFIK_DOMAIN}`)"
+      - "traefik.http.routers.api.entrypoints=websecure"
+      - "traefik.http.routers.api.service=api@internal"
+      - "traefik.http.middlewares.redirect-to-https.redirectscheme.scheme=https"
+      - "traefik.http.routers.api.tls.certresolver=le"
       # Middleware pour la redirection de HTTP vers HTTPS
-      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)" # Tous les domaines
-      - "traefik.http.routers.http-catchall.entrypoints=web" # Entrée HTTP
-      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https" # Middleware de redirection
+      - "traefik.http.routers.http-catchall.rule=HostRegexp(`{host:.+}`)"
+      - "traefik.http.routers.http-catchall.entrypoints=web"
+      - "traefik.http.routers.http-catchall.middlewares=redirect-to-https"
       # Middleware pour l'authentification
-      - "traefik.http.routers.api.middlewares=auth" # Middleware pour l'authentification
-      - "traefik.http.middlewares.auth.basicauth.users=${BASIC_AUTH}" # Authentification basique
+      - "traefik.http.routers.api.middlewares=auth"
+      - "traefik.http.middlewares.auth.basicauth.users=${BASIC_AUTH}"
     command:
       - "--log.level=info" # Niveau de log
-      - "--api.insecure=false" # Désactive le mode insecure
+      - "--api.insecure=false"
       - "--api.dashboard=true" # Active le dashboard
-      - "--providers.docker" # Utilisation du provider Docker
-      - "--entrypoints.web.address=:${HTTP_PORT}" # Port HTTP
-      - "--entrypoints.websecure.address=:${HTTPS_PORT}" # Port HTTPS
-      - "--certificatesresolvers.le.acme.email=${EMAIL}" # Email pour les certificats
-      - "--certificatesresolvers.le.acme.storage=/acme.json" # Stockage des certificats
-      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web" # Challenge HTTP
+      - "--providers.docker"
+      - "--entrypoints.web.address=:${HTTP_PORT}"
+      - "--entrypoints.websecure.address=:${HTTPS_PORT}"
+      - "--certificatesresolvers.le.acme.email=${EMAIL}"
+      - "--certificatesresolvers.le.acme.storage=/acme/acme.json"
+      - "--certificatesresolvers.le.acme.httpchallenge.entrypoint=web"
       # Set AccessLog
       - "--accesslog=true"
-      - "--accesslog.filepath=/logs/access.log"        # Chemin du fichier de logs
-      - "--accesslog.bufferingsize=100"                # Taille du buffer pour l'écriture (optionnel)
-      - "--accesslog.fields.defaultmode=keep"          # Garde tous les champs par défaut
-      - "--accesslog.fields.names.ClientUsername=drop" # Supprime un champ spécifique
-      - "--accesslog.fields.headers.defaultmode=keep"  # Garde tous les headers
+      - "--accesslog.filepath=/logs/access.log"
+      - "--accesslog.bufferingsize=100"
+      - "--accesslog.fields.defaultmode=keep"
+      - "--accesslog.fields.names.ClientUsername=drop"
+      - "--accesslog.fields.headers.defaultmode=keep"
+      - "--accesslog.format=json"
+      - "--accesslog.filters.statusCodes=400-599"
     ports:
       - "${HTTP_PORT}:80"
       - "${HTTPS_PORT}:443"  # Port HTTPS personnalisé
     volumes:
       - "${DOCKER_SOCK}:${DOCKER_SOCK}"
-      - ./acme.json:/acme.json # Stockage des certificats
+      - traefik_certs:/acme
       - "./logs/:/logs"  # Montre le répertoire pour stocker les logs d'accès
     networks:
       - traefik_network
+    depends_on:
+      - init-acme
+  nginx-test:
+    image: nginx:latest
+    container_name: nginx_test
+    restart: always
+    volumes:
+      - ./test-page:/usr/share/nginx/html:ro
+    labels:
+      - "traefik.enable=true"
+      - "traefik.http.routers.nginx-test.rule=Host(`vps-ovh.${DOMAIN}`)"
+      - "traefik.http.routers.nginx-test.entrypoints=websecure"
+      - "traefik.http.routers.nginx-test.tls.certresolver=le"
+    networks:
+      - traefik_network
+    depends_on:
+      - traefik
+  init-acme:
+    image: alpine:latest
+    container_name: init_acme
+    command: [ "/bin/sh", "-c", "touch /acme/acme.json && chmod 600 /acme/acme.json" ]
+    volumes:
+      - traefik_certs:/acme
+    restart: "no"
 
 networks:
   traefik_network:
     external: true
+
+volumes:
+  traefik_certs:
+    name: traefik_certs
+    driver: local
