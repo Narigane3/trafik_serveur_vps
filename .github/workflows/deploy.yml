@@ -13,10 +13,6 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v3
 
-      - name: Test SSH connection
-        run: |
-          ssh -vvv -o StrictHostKeyChecking=no ${{ secrets.VPS_USER }}@${{ secrets.VPS_HOST }} "echo SSH connection successful"
-
       - name: Set up SSH
         run: |
           mkdir -p ~/.ssh
