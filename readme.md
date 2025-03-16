@@ -1,5 +1,7 @@
 # Configuration du reouteur serveur via Traefik
 
+[![Deploy to VPS](https://github.com/Narigane3/trafik_serveur_vps/actions/workflows/deploy.yml/badge.svg)](https://github.com/Narigane3/trafik_serveur_vps/actions/workflows/deploy.yml)
+
 ## Table des matières
 - [Description](#description)
 - [Information](#information)
